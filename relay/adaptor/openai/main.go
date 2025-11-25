@@ -742,6 +742,10 @@ func ResponseAPIHandler(c *gin.Context, resp *http.Response, promptTokens int, m
 		}, nil
 	}
 
+	if c.GetBool(ctxkey.ResponseAPI) {
+		c.Set(ctxkey.ResponseAPIID, responseAPIResp.Id)
+	}
+
 	calls := countWebSearchSearchActions(responseAPIResp.Output)
 	if derived, usedFallback := deriveWebSearchInvocationCount(calls, responseAPIResp.Usage); usedFallback {
 		lg.Debug("web search count derived from usage details", zap.Int("web_search_requests", derived))
@@ -1310,6 +1314,10 @@ func ResponseAPIDirectHandler(c *gin.Context, resp *http.Response, promptTokens 
 			Error:      *responseAPIResp.Error,
 			StatusCode: resp.StatusCode,
 		}, nil
+	}
+
+	if c.GetBool(ctxkey.ResponseAPI) {
+		c.Set(ctxkey.ResponseAPIID, responseAPIResp.Id)
 	}
 
 	calls := countWebSearchSearchActions(responseAPIResp.Output)

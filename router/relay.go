@@ -32,6 +32,7 @@ func SetRelayRouter(router *gin.Engine) {
 		func(c *gin.Context) { done := graceful.BeginRequest(); defer done(); c.Next() },
 		middleware.RelayPanicRecover(), middleware.TokenAuth(),
 		middleware.BindAsyncTaskChannel(),
+		middleware.SetModelIDForRequestAPI(),
 		middleware.Distribute(),
 		middleware.GlobalRelayRateLimit(),
 		middleware.ChannelRateLimit(),
@@ -45,7 +46,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relayV1Router.Any("/oneapi/proxy/:channelid/*target", controller.Relay)
 	relayV1Router.POST("/completions", controller.Relay)
 	relayV1Router.POST("/chat/completions", controller.Relay)
-	relayV1Router.POST("/responses", controller.Relay)
+	relayV1Router.POST("/responses", middleware.ResponseID(), controller.Relay)
 	relayV1Router.GET("/responses/:response_id", controller.RelayResponseGet)
 	relayV1Router.DELETE("/responses/:response_id", controller.RelayResponseDelete)
 	relayV1Router.POST("/responses/:response_id/cancel", controller.RelayResponseCancel)

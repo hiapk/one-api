@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/tracing"
 	"github.com/songquanpeng/one-api/model"
 )
@@ -10,6 +11,12 @@ import (
 // TracingMiddleware creates a middleware that records request tracing information
 func TracingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Skip tracing if disabled in config
+		if !config.EnableTrace {
+			c.Next()
+			return
+		}
+
 		// Record the start of the request
 		tracing.RecordTraceStart(c)
 

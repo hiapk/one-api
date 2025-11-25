@@ -254,4 +254,7 @@ const (
 	// Set in: relay/controller/text when initializing a streaming request.
 	// Read in: streaming adaptors to record completion progress and enforce quota limits mid-stream.
 	StreamingQuotaTracker = "streaming_quota_tracker"
+
+	ResponseAPI   = "response_api"
+	ResponseAPIID = "response_id"
 )

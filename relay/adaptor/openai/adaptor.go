@@ -126,7 +126,7 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 			requestPath = "/v1/chat/completions"
 		}
 		if useResponseAPI {
-			requestURL := "/openai/v1/responses"
+			requestURL := "/openai" + requestPath
 			if strings.TrimSpace(defaultVersion) != "" {
 				requestURL = fmt.Sprintf("%s?api-version=%s", requestURL, defaultVersion)
 			}

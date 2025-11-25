@@ -89,7 +89,7 @@ var (
 	// GeminiSafetySetting defines the default Gemini safety preset applied to requests without explicit overrides.
 	GeminiSafetySetting = env.String("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 	// Theme chooses which bundled frontend theme to render.
-	Theme = env.String("THEME", "modern")
+	Theme = env.String("THEME", "default")
 
 	// RequestInterval throttles billing/channel polling loops (seconds).
 	RequestInterval = time.Duration(env.Int("POLLING_INTERVAL", 0)) * time.Second
@@ -114,6 +114,8 @@ var (
 	EnableMetric = env.Bool("ENABLE_METRIC", false)
 	// EnablePrometheusMetrics exposes the /metrics endpoint for Prometheus scrapers when true.
 	EnablePrometheusMetrics = env.Bool("ENABLE_PROMETHEUS_METRICS", true)
+	// EnableTrace toggles request tracing functionality including trace records and timestamps.
+	EnableTrace = env.Bool("ENABLE_TRACE", false)
 	// MetricQueueSize configures the buffered queue that aggregates success/failure events before processing.
 	MetricQueueSize = env.Int("METRIC_QUEUE_SIZE", 10)
 	// MetricSuccessRateThreshold defines the minimum acceptable success ratio before a channel is flagged as unhealthy.

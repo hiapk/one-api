@@ -537,6 +537,10 @@ func renderChatResponseAsResponseAPI(c *gin.Context, status int, textResp *opena
 	output := buildResponseOutput(textResp.Choices)
 	toolCalls := buildRequiredActionToolCalls(textResp.Choices)
 
+	if c.GetString(ctxkey.ResponseAPIID) != "" {
+		responseID = c.GetString(ctxkey.ResponseAPIID)
+	}
+
 	response := openai.ResponseAPIResponse{
 		Id:                 responseID,
 		Object:             "response",
@@ -580,6 +584,7 @@ func renderChatResponseAsResponseAPI(c *gin.Context, status int, textResp *opena
 	}
 
 	c.Writer.Header().Set("Content-Type", "application/json")
+	c.Writer.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	c.Writer.WriteHeader(status)
 	_, err = c.Writer.Write(data)
 	return err
@@ -1347,7 +1352,7 @@ func applyResponseAPIStreamParams(c *gin.Context, meta *metalib.Meta) error {
 func RelayResponseAPIGetHelper(c *gin.Context) *relaymodel.ErrorWithStatusCode {
 	meta := metalib.GetByContext(c)
 
-	if meta.ChannelType != channeltype.OpenAI {
+	if meta.ChannelType != channeltype.OpenAI && meta.ChannelType != channeltype.Azure {
 		return openai.ErrorWrapper(errors.New("Response API is only supported for OpenAI channels"), "unsupported_channel", http.StatusBadRequest)
 	}
 
@@ -1385,7 +1390,7 @@ func RelayResponseAPIDeleteHelper(c *gin.Context) *relaymodel.ErrorWithStatusCod
 	meta.IsStream = false
 	metalib.Set2Context(c, meta)
 
-	if meta.ChannelType != channeltype.OpenAI {
+	if meta.ChannelType != channeltype.OpenAI && meta.ChannelType != channeltype.Azure {
 		return openai.ErrorWrapper(errors.New("Response API is only supported for OpenAI channels"), "unsupported_channel", http.StatusBadRequest)
 	}
 
@@ -1434,7 +1439,7 @@ func RelayResponseAPICancelHelper(c *gin.Context) *relaymodel.ErrorWithStatusCod
 	meta.IsStream = false
 	metalib.Set2Context(c, meta)
 
-	if meta.ChannelType != channeltype.OpenAI {
+	if meta.ChannelType != channeltype.OpenAI && meta.ChannelType != channeltype.Azure {
 		return openai.ErrorWrapper(errors.New("Response API is only supported for OpenAI channels"), "unsupported_channel", http.StatusBadRequest)
 	}
 

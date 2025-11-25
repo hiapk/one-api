@@ -7,6 +7,7 @@ import (
 	"github.com/Laisky/zap"
 	"github.com/gin-gonic/gin"
 
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
 )
@@ -34,6 +35,9 @@ func GetTraceIDFromContext(ctx context.Context) string {
 
 // RecordTraceStart creates a new trace record when a request starts
 func RecordTraceStart(c *gin.Context) {
+	if !config.EnableTrace {
+		return
+	}
 	traceID := GetTraceID(c)
 	lg := gmw.GetLogger(c).With(zap.String("trace_id", traceID))
 	if traceID == "" {
@@ -57,6 +61,9 @@ func RecordTraceStart(c *gin.Context) {
 
 // RecordTraceTimestamp updates a specific timestamp in the trace record
 func RecordTraceTimestamp(c *gin.Context, timestampKey string) {
+	if !config.EnableTrace {
+		return
+	}
 	traceID := GetTraceID(c)
 	lg := gmw.GetLogger(c).With(
 		zap.String("trace_id", traceID),
@@ -93,6 +100,9 @@ func RecordTraceTimestamp(c *gin.Context, timestampKey string) {
 
 // RecordTraceStatus updates the HTTP status code for a trace
 func RecordTraceStatus(c *gin.Context, status int) {
+	if !config.EnableTrace {
+		return
+	}
 	traceID := GetTraceID(c)
 	lg := gmw.GetLogger(c).With(
 		zap.String("trace_id", traceID),
@@ -114,6 +124,9 @@ func RecordTraceStatus(c *gin.Context, status int) {
 
 // RecordTraceEnd marks the completion of a request and records final timestamp
 func RecordTraceEnd(c *gin.Context) {
+	if !config.EnableTrace {
+		return
+	}
 	traceID := GetTraceID(c)
 	lg := gmw.GetLogger(c).With(zap.String("trace_id", traceID))
 	if traceID == "" {
