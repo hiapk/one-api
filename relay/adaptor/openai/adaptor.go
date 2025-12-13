@@ -48,6 +48,12 @@ func azureRequiresResponseAPI(modelName string) bool {
 	return strings.HasPrefix(normalized, "gpt-5")
 }
 
+// AzureRequiresResponseAPI reports whether an Azure deployment must be called via the Response API surface.
+// Exposed so controllers can keep conversion heuristics in sync with the adaptor's routing logic.
+func AzureRequiresResponseAPI(modelName string) bool {
+	return azureRequiresResponseAPI(modelName)
+}
+
 // shouldForceResponseAPI reports whether the upstream request must use the Response API surface.
 func shouldForceResponseAPI(metaInfo *meta.Meta) bool {
 	if metaInfo == nil {
@@ -78,12 +84,12 @@ func normalizedModelName(modelName string) string {
 	return strings.ToLower(strings.TrimSpace(modelName))
 }
 
-func isWebSearchPreviewModel(lower string) bool {
-	if lower == "" {
-		return false
-	}
-	return strings.Contains(lower, "search-preview") || strings.Contains(lower, "web-search-preview")
-}
+// func isWebSearchPreviewModel(lower string) bool {
+// 	if lower == "" {
+// 		return false
+// 	}
+// 	return strings.Contains(lower, "search-preview") || strings.Contains(lower, "web-search-preview")
+// }
 
 func (a *Adaptor) Init(meta *meta.Meta) {
 	a.ChannelType = meta.ChannelType
@@ -820,6 +826,8 @@ func (a *Adaptor) DoResponse(c *gin.Context,
 			err, usage = ResponseAPIDirectHandler(c, resp, meta.PromptTokens, meta.ActualModelName)
 		case relaymode.Videos:
 			err, usage = VideoHandler(c, resp)
+		case relaymode.ClaudeMessages:
+			// Skip Handler so convertToClaudeResponse can reformat the upstream payload later
 		case relaymode.ChatCompletions:
 			if shouldConvertToClaude {
 				// Skip Handler to keep body intact for Claude conversion.
@@ -1117,7 +1125,7 @@ func (a *Adaptor) ConvertResponseAPIToClaudeResponse(c *gin.Context, resp *http.
 }
 
 // convertStreamingToClaudeResponse converts a streaming OpenAI response to Claude format
-func (a *Adaptor) convertStreamingToClaudeResponse(c *gin.Context, resp *http.Response, body []byte) (*http.Response, *model.ErrorWithStatusCode) {
+func (a *Adaptor) convertStreamingToClaudeResponse(_ *gin.Context, resp *http.Response, body []byte) (*http.Response, *model.ErrorWithStatusCode) {
 	// For streaming responses, we need to convert each SSE event
 	// This is more complex and would require parsing SSE events and converting them
 	// For now, we'll create a simple streaming converter

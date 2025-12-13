@@ -54,116 +54,6 @@ function renderUseTime(type) {
 }
 
 const LogsTable = () => {
-  const columns = [{
-    title: '时间', dataIndex: 'timestamp2string'
-  }, {
-    title: '渠道',
-    dataIndex: 'channel',
-    className: isAdmin() ? 'tableShow' : 'tableHiddle',
-    render: (text, record, index) => {
-      return (isAdminUser ? record.type === 0 || record.type === 2 ? <div>
-        {<Tag color={colors[parseInt(text) % colors.length]} size="large"> {text} </Tag>}
-      </div> : <></> : <></>);
-    }
-  }, {
-    title: '用户',
-    dataIndex: 'username',
-    className: isAdmin() ? 'tableShow' : 'tableHiddle',
-    render: (text, record, index) => {
-      return (isAdminUser ? <div>
-        <Avatar size="small" color={stringToColor(text)} style={{ marginRight: 4 }}
-          onClick={() => showUserInfo(record.user_id)}>
-          {typeof text === 'string' && text.slice(0, 1)}
-        </Avatar>
-        {text}
-      </div> : <></>);
-    }
-  }, {
-    title: '令牌', dataIndex: 'token_name', render: (text, record, index) => {
-      return (record.type === 0 || record.type === 2 ? <div>
-        <Tag color="grey" size="large" onClick={() => {
-          copyText(text);
-        }}> {text} </Tag>
-      </div> : <></>);
-    }
-  }, {
-    title: '类型', dataIndex: 'type', render: (text, record, index) => {
-      return (<div>
-        {renderType(text)}
-      </div>);
-    }
-  }, {
-    title: '模型', dataIndex: 'model_name', render: (text, record, index) => {
-      return (record.type === 0 || record.type === 2 ? <div>
-        <Tag color={stringToColor(text)} size="large" onClick={() => {
-          copyText(text);
-        }}> {text} </Tag>
-      </div> : <></>);
-    }
-  },
-  // {
-  //   title: '用时', dataIndex: 'use_time', render: (text, record, index) => {
-  //     return (<div>
-  //       <Space>
-  //         {renderUseTime(text)}
-  //         {renderIsStream(record.is_stream)}
-  //       </Space>
-  //     </div>);
-  //   }
-  // },
-  {
-    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('prompt_tokens')}>
-      提示{getSortIcon('prompt_tokens')}
-      {sortLoading && sortBy === 'prompt_tokens' && <span> ⏳</span>}
-    </span>,
-    dataIndex: 'prompt_tokens',
-    render: (text, record, index) => {
-      return (record.type === 0 || record.type === 2 ? <div>
-        {<span> {text} </span>}
-      </div> : <></>);
-    }
-  }, {
-    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('completion_tokens')}>
-      补全{getSortIcon('completion_tokens')}
-      {sortLoading && sortBy === 'completion_tokens' && <span> ⏳</span>}
-    </span>,
-    dataIndex: 'completion_tokens',
-    render: (text, record, index) => {
-      return (parseInt(text) > 0 && (record.type === 0 || record.type === 2) ? <div>
-        {<span> {text} </span>}
-      </div> : <></>);
-    }
-  }, {
-    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('quota')}>
-      花费{getSortIcon('quota')}
-      {sortLoading && sortBy === 'quota' && <span> ⏳</span>}
-    </span>,
-    dataIndex: 'quota',
-    render: (text, record, index) => {
-      return (record.type === 0 || record.type === 2 ? <div>
-        {renderQuota(text, 6)}
-      </div> : <></>);
-    }
-  }, {
-    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('elapsed_time')}>
-      Latency{getSortIcon('elapsed_time')}
-      {sortLoading && sortBy === 'elapsed_time' && <span> ⏳</span>}
-    </span>,
-    dataIndex: 'elapsed_time',
-    render: (text, record, index) => {
-      return (record.type === 0 || record.type === 2 ? <div>
-        {text ? `${text} ms` : ''}
-      </div> : <></>);
-    }
-  }, {
-    title: '详情', dataIndex: 'content', render: (text, record, index) => {
-      return <Paragraph ellipsis={{ rows: 2, showTooltip: { type: 'popover', opts: { style: { width: 240 } } } }}
-        style={{ maxWidth: 240 }}>
-        {text}
-      </Paragraph>;
-    }
-  }];
-
   const [logs, setLogs] = useState([]);
   const [showStat, setShowStat] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -392,6 +282,116 @@ const LogsTable = () => {
     }
     return sortOrder === 'asc' ? ' ↑' : ' ↓';
   };
+
+  const columns = [{
+    title: '时间', dataIndex: 'timestamp2string'
+  }, {
+    title: '渠道',
+    dataIndex: 'channel',
+    className: isAdmin() ? 'tableShow' : 'tableHiddle',
+    render: (text, record, index) => {
+      return (isAdminUser ? record.type === 0 || record.type === 2 ? <div>
+        {<Tag color={colors[parseInt(text) % colors.length]} size="large"> {text} </Tag>}
+      </div> : <></> : <></>);
+    }
+  }, {
+    title: '用户',
+    dataIndex: 'username',
+    className: isAdmin() ? 'tableShow' : 'tableHiddle',
+    render: (text, record, index) => {
+      return (isAdminUser ? <div>
+        <Avatar size="small" color={stringToColor(text)} style={{ marginRight: 4 }}
+          onClick={() => showUserInfo(record.user_id)}>
+          {typeof text === 'string' && text.slice(0, 1)}
+        </Avatar>
+        {text}
+      </div> : <></>);
+    }
+  }, {
+    title: '令牌', dataIndex: 'token_name', render: (text, record, index) => {
+      return (record.type === 0 || record.type === 2 ? <div>
+        <Tag color="grey" size="large" onClick={() => {
+          copyText(text);
+        }}> {text} </Tag>
+      </div> : <></>);
+    }
+  }, {
+    title: '类型', dataIndex: 'type', render: (text, record, index) => {
+      return (<div>
+        {renderType(text)}
+      </div>);
+    }
+  }, {
+    title: '模型', dataIndex: 'model_name', render: (text, record, index) => {
+      return (record.type === 0 || record.type === 2 ? <div>
+        <Tag color={stringToColor(text)} size="large" onClick={() => {
+          copyText(text);
+        }}> {text} </Tag>
+      </div> : <></>);
+    }
+  },
+  // {
+  //   title: '用时', dataIndex: 'use_time', render: (text, record, index) => {
+  //     return (<div>
+  //       <Space>
+  //         {renderUseTime(text)}
+  //         {renderIsStream(record.is_stream)}
+  //       </Space>
+  //     </div>);
+  //   }
+  // },
+  {
+    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('prompt_tokens')}>
+      提示{getSortIcon('prompt_tokens')}
+      {sortLoading && sortBy === 'prompt_tokens' && <span> ⏳</span>}
+    </span>,
+    dataIndex: 'prompt_tokens',
+    render: (text, record, index) => {
+      return (record.type === 0 || record.type === 2 ? <div>
+        {<span> {text} </span>}
+      </div> : <></>);
+    }
+  }, {
+    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('completion_tokens')}>
+      补全{getSortIcon('completion_tokens')}
+      {sortLoading && sortBy === 'completion_tokens' && <span> ⏳</span>}
+    </span>,
+    dataIndex: 'completion_tokens',
+    render: (text, record, index) => {
+      return (parseInt(text) > 0 && (record.type === 0 || record.type === 2) ? <div>
+        {<span> {text} </span>}
+      </div> : <></>);
+    }
+  }, {
+    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('quota')}>
+      花费{getSortIcon('quota')}
+      {sortLoading && sortBy === 'quota' && <span> ⏳</span>}
+    </span>,
+    dataIndex: 'quota',
+    render: (text, record, index) => {
+      return (record.type === 0 || record.type === 2 ? <div>
+        {renderQuota(text, 6)}
+      </div> : <></>);
+    }
+  }, {
+    title: <span style={{ cursor: sortLoading ? 'wait' : 'pointer', opacity: sortLoading ? 0.6 : 1 }} onClick={() => handleSort('elapsed_time')}>
+      Latency{getSortIcon('elapsed_time')}
+      {sortLoading && sortBy === 'elapsed_time' && <span> ⏳</span>}
+    </span>,
+    dataIndex: 'elapsed_time',
+    render: (text, record, index) => {
+      return (record.type === 0 || record.type === 2 ? <div>
+        {text ? `${text} ms` : ''}
+      </div> : <></>);
+    }
+  }, {
+    title: '详情', dataIndex: 'content', render: (text, record, index) => {
+      return <Paragraph ellipsis={{ rows: 2, showTooltip: { type: 'popover', opts: { style: { width: 240 } } } }}
+        style={{ maxWidth: 240 }}>
+        {text}
+      </Paragraph>;
+    }
+  }];
 
   const refresh = async (localLogType) => {
     // setLoading(true);

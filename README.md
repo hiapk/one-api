@@ -7,7 +7,7 @@ Open‑source version of OpenRouter, managed through a unified gateway that hand
 1. Aggregating chat, image, speech, TTS, embeddings, rerank and other capabilities.
 2. Aggregating multiple model providers such as OpenAI, Anthropic, Azure, Google Vertex, OpenRouter, DeepSeek, Replicate, AWS Bedrock, etc.
 3. Aggregating various upstream API request formats like Chat Completion, Response, Claude Messages.
-4. Supporting different request formats; users can issue requests via Chat Completion, Response, or Claude Messages, which are automatically and transparently converted to the native request format of the upstream model.
+4. Supporting different request formats; users can issue requests via Chat Completion, Response, or Claude Messages, which are automatically and transparently converted to the native request format of the upstream model. Even if the client sends a mismatched request format to wrong api endpoint, it will still be correctly processed.
 5. Supporting multi‑tenant management, allowing each tenant to set distinct quotas and permissions.
 6. Supporting generation of sub‑API Keys; each tenant can create multiple sub‑API Keys, each of which can be bound to different models and quotas.
 
@@ -18,50 +18,52 @@ Also welcome to register and use my deployed one-api gateway, which supports var
 Try it at <https://oneapi.laisky.com>, login with `test` / `12345678`. 🚀
 
 ```plain
-=== One-API Compatibility Matrix ===
+=== One-API Compatibility Matrix 2025-12-12T04:37:09Z ===
 
 Request Format                         gpt-4o-mini  gpt-5-mini   claude-haiku-4-5  gemini-2.5-flash  openai/gpt-oss-20b  deepseek-chat  grok-4-fast-non-reasoning  azure-gpt-5-nano
-Chat (stream=false)                    PASS 10.64s  PASS 9.07s   PASS 5.59s        PASS 9.01s        PASS 7.34s          PASS 6.46s     PASS 7.33s                 PASS 16.53s
-Chat (stream=true)                     PASS 6.42s   PASS 8.19s   PASS 5.11s        PASS 3.76s        PASS 3.43s          PASS 8.71s     PASS 3.69s                 PASS 16.95s
-Chat Tools (stream=false)              PASS 7.34s   PASS 10.70s  PASS 9.39s        PASS 9.88s        PASS 4.71s          PASS 6.94s     PASS 5.97s                 PASS 10.82s
-Chat Tools (stream=true)               PASS 5.44s   PASS 8.40s   PASS 4.65s        PASS 3.97s        PASS 6.37s          PASS 5.23s     PASS 2.90s                 PASS 11.05s
-Chat Tools History (stream=false)      PASS 5.12s   PASS 9.64s   PASS 4.79s        PASS 6.95s        PASS 1.50s          PASS 5.42s     PASS 3.94s                 PASS 16.11s
-Chat Tools History (stream=true)       PASS 4.50s   PASS 8.56s   PASS 9.23s        PASS 4.16s        PASS 4.52s          PASS 7.23s     PASS 3.74s                 PASS 16.21s
-Chat Structured (stream=false)         PASS 9.19s   PASS 10.61s  PASS 6.87s        PASS 7.12s        PASS 8.06s          PASS 5.05s     PASS 4.09s                 FAIL structured output fields missing
-Chat Structured (stream=true)          PASS 8.70s   PASS 15.17s  PASS 5.80s        PASS 7.54s        PASS 6.41s          PASS 8.00s     PASS 2.70s                 PASS 16.31s
-Response (stream=false)                PASS 4.34s   PASS 23.74s  PASS 8.59s        PASS 8.45s        PASS 9.42s          PASS 9.54s     PASS 7.39s                 PASS 17.72s
-Response (stream=true)                 PASS 2.84s   PASS 21.54s  PASS 6.21s        PASS 8.93s        PASS 1.67s          PASS 11.44s    PASS 5.88s                 PASS 17.14s
-Response Vision (stream=false)         PASS 8.50s   PASS 9.46s   PASS 4.67s        PASS 10.66s       SKIP                SKIP           PASS 3.71s                 PASS 19.22s
-Response Vision (stream=true)          PASS 8.79s   PASS 5.95s   PASS 8.22s        PASS 6.44s        SKIP                SKIP           PASS 5.88s                 PASS 33.95s
-Response Tools (stream=false)          PASS 8.30s   PASS 9.27s   PASS 7.92s        PASS 7.62s        PASS 4.43s          PASS 4.73s     PASS 7.34s                 PASS 9.18s
-Response Tools (stream=true)           PASS 3.55s   PASS 3.88s   PASS 7.43s        PASS 2.69s        PASS 6.98s          PASS 7.74s     PASS 4.65s                 PASS 5.19s
-Response Tools History (stream=false)  PASS 7.08s   PASS 9.43s   PASS 4.96s        PASS 9.61s        PASS 6.70s          PASS 5.66s     PASS 7.50s                 PASS 7.10s
-Response Tools History (stream=true)   PASS 6.23s   PASS 10.12s  PASS 5.68s        PASS 7.15s        PASS 1.37s          PASS 4.19s     PASS 3.39s                 PASS 16.43s
-Response Structured (stream=false)     PASS 7.04s   PASS 19.04s  PASS 9.57s        PASS 4.61s        PASS 2.76s          PASS 9.62s     PASS 4.83s                 PASS 30.23s
-Response Structured (stream=true)      PASS 4.06s   PASS 12.22s  PASS 8.30s        PASS 3.75s        PASS 2.83s          PASS 6.48s     PASS 5.42s                 PASS 29.10s
-Claude (stream=false)                  PASS 4.55s   PASS 9.66s   PASS 3.51s        PASS 7.53s        PASS 6.93s          PASS 5.89s     PASS 6.70s                 PASS 10.57s
-Claude (stream=true)                   PASS 4.19s   PASS 4.68s   PASS 10.32s       PASS 3.65s        PASS 5.90s          PASS 6.80s     PASS 6.38s                 PASS 8.01s
-Claude Tools (stream=false)            PASS 9.35s   PASS 9.50s   PASS 6.44s        PASS 7.75s        PASS 4.54s          PASS 4.09s     PASS 6.41s                 PASS 12.58s
-Claude Tools (stream=true)             PASS 6.79s   PASS 13.00s  PASS 6.87s        PASS 4.38s        PASS 6.79s          PASS 6.03s     PASS 2.81s                 PASS 8.28s
-Claude Tools History (stream=false)    PASS 4.98s   PASS 8.26s   PASS 2.82s        PASS 9.97s        PASS 2.85s          PASS 7.21s     PASS 10.10s                PASS 15.87s
-Claude Tools History (stream=true)     PASS 4.42s   PASS 16.86s  PASS 4.22s        PASS 6.91s        PASS 6.13s          PASS 8.50s     PASS 1.94s                 PASS 8.62s
-Claude Structured (stream=false)       PASS 9.27s   SKIP         PASS 8.94s        PASS 4.10s        PASS 6.88s          PASS 6.61s     PASS 5.31s                 SKIP
-Claude Structured (stream=true)        PASS 7.89s   SKIP         PASS 2.11s        PASS 6.96s        PASS 3.43s          PASS 3.66s     PASS 6.18s                 SKIP
+Chat (stream=false)                    PASS 11.21s  PASS 13.10s  PASS 8.52s        PASS 4.64s        PASS 9.52s          PASS 7.08s     PASS 3.08s                 PASS 14.68s
+Chat (stream=true)                     PASS 13.23s  PASS 13.37s  PASS 2.31s        PASS 6.02s        PASS 4.56s          PASS 10.92s    PASS 9.72s                 PASS 15.30s
+Chat Tools (stream=false)              PASS 5.60s   PASS 12.94s  PASS 7.69s        PASS 7.11s        PASS 3.14s          PASS 8.71s     PASS 5.48s                 PASS* 35.02s
+Chat Tools (stream=true)               PASS 14.51s  PASS 18.90s  PASS 7.60s        PASS 4.36s        PASS 8.87s          PASS 7.56s     PASS 7.45s                 PASS 13.13s
+Chat Tools History (stream=false)      PASS 9.09s   PASS 14.28s  PASS 12.04s       PASS 7.45s        PASS 10.40s         PASS 9.52s     PASS 6.26s                 PASS 13.61s
+Chat Tools History (stream=true)       PASS 14.80s  PASS 25.49s  PASS 3.08s        PASS 11.24s       PASS 5.22s          PASS 4.97s     PASS 5.14s                 PASS 15.56s
+Chat Structured (stream=false)         PASS 10.51s  PASS 15.71s  PASS 12.66s       PASS 13.68s       PASS 8.24s          PASS 6.95s     PASS 13.42s                PASS 13.80s
+Chat Structured (stream=true)          PASS 11.26s  PASS 14.50s  PASS 6.07s        PASS 4.84s        PASS 6.97s          PASS 6.86s     PASS 4.51s                 PASS 14.04s
+Response (stream=false)                PASS 14.65s  PASS 15.31s  PASS 10.51s       PASS 3.03s        PASS 3.98s          PASS 12.83s    PASS 11.29s                PASS 15.70s
+Response (stream=true)                 PASS 8.91s   PASS 17.54s  PASS 6.51s        PASS 5.81s        PASS 5.26s          PASS 7.56s     PASS 9.51s                 PASS 15.66s
+Response Vision (stream=false)         PASS 12.32s  PASS 14.49s  PASS 14.12s       PASS 8.82s        SKIP                SKIP           PASS 8.74s                 PASS 16.59s
+Response Vision (stream=true)          PASS 11.04s  PASS 9.50s   PASS 10.75s       PASS 13.60s       SKIP                SKIP           PASS 9.05s                 PASS 11.51s
+Response Tools (stream=false)          PASS 11.02s  PASS 11.71s  PASS 7.68s        PASS 10.55s       PASS 4.04s          PASS 10.30s    PASS 10.15s                PASS 12.93s
+Response Tools (stream=true)           PASS 8.64s   PASS 14.40s  PASS 10.73s       PASS 13.20s       PASS 6.81s          PASS 7.62s     PASS 13.42s                PASS 12.03s
+Response Tools History (stream=false)  PASS 8.04s   PASS 14.45s  PASS 9.63s        PASS 5.54s        PASS 5.88s          PASS 9.30s     PASS 5.22s                 PASS 11.11s
+Response Tools History (stream=true)   PASS 9.89s   PASS 12.22s  PASS 6.58s        PASS 5.18s        PASS 7.40s          PASS 5.84s     PASS 4.50s                 PASS 16.86s
+Response Structured (stream=false)     PASS 14.35s  PASS 15.40s  PASS 13.74s       PASS 12.78s       PASS 7.59s          PASS 5.99s     PASS 12.10s                PASS 13.18s
+Response Structured (stream=true)      PASS 15.04s  PASS 12.68s  PASS 12.52s       PASS 7.83s        PASS 7.85s          PASS 3.81s     PASS 8.35s                 PASS 11.01s
+Claude (stream=false)                  PASS 4.78s   PASS 11.79s  PASS 12.18s       PASS 10.58s       PASS 8.75s          PASS 12.46s    PASS 9.66s                 PASS 14.93s
+Claude (stream=true)                   PASS 4.46s   PASS 9.82s   PASS 6.43s        PASS 14.37s       PASS 9.22s          PASS 12.17s    PASS 3.13s                 PASS 20.63s
+Claude Tools (stream=false)            PASS 9.20s   PASS 11.08s  PASS 11.79s       PASS 3.55s        PASS 7.39s          PASS 6.32s     PASS 12.71s                PASS 14.85s
+Claude Tools (stream=true)             PASS 3.01s   PASS 6.56s   PASS 14.15s       PASS 8.11s        PASS 9.11s          PASS 8.37s     PASS 4.16s                 PASS 12.80s
+Claude Tools History (stream=false)    PASS 9.67s   PASS 15.07s  PASS 7.45s        PASS 6.70s        PASS 8.47s          PASS 9.25s     PASS 13.92s                PASS 15.36s
+Claude Tools History (stream=true)     PASS 11.15s  PASS 19.37s  PASS 13.52s       PASS 8.90s        PASS 7.20s          PASS 8.89s     PASS 5.81s                 PASS 9.87s
+Claude Structured (stream=false)       PASS 5.39s   SKIP         PASS 7.89s        PASS 11.51s       PASS 13.30s         PASS 8.31s     PASS 6.16s                 SKIP
+Claude Structured (stream=true)        PASS 6.43s   SKIP         PASS 11.05s       PASS 9.62s        PASS 3.05s          PASS 4.64s     PASS 4.69s                 SKIP
 
-Totals  | Requests: 208 | Passed: 199 | Failed: 1 | Skipped: 8
+Totals  | Requests: 208 | Passed: 200 | Failed: 0 | Skipped: 8
 
-Failures:
-- azure-gpt-5-nano · Chat Structured (stream=false) → structured output fields missing
+Warnings (passed with caveats):
+- azure-gpt-5-nano - Chat Tools (stream=false) -> tool was not invoked
 
 Skipped (unsupported combinations):
-- azure-gpt-5-nano · Claude Structured (stream=false) → Azure GPT-5 nano does not return structured JSON for Claude messages (empty content)
-- azure-gpt-5-nano · Claude Structured (stream=true) → Azure GPT-5 nano does not return structured JSON for Claude messages (empty content)
-- deepseek-chat · Response Vision (stream=false) → vision input unsupported by model deepseek-chat
-- deepseek-chat · Response Vision (stream=true) → vision input unsupported by model deepseek-chat
-- gpt-5-mini · Claude Structured (stream=false) → GPT-5 mini returns empty content for Claude structured requests
-- gpt-5-mini · Claude Structured (stream=true) → GPT-5 mini streams only usage deltas, never emitting structured JSON blocks
-- openai/gpt-oss-20b · Response Vision (stream=false) → vision input unsupported by model openai/gpt-oss-20b
-- openai/gpt-oss-20b · Response Vision (stream=true) → vision input unsupported by model openai/gpt-oss-20b
+- azure-gpt-5-nano - Claude Structured (stream=false) -> Azure GPT-5 nano does not return structured JSON for Claude messages (empty content)
+- azure-gpt-5-nano - Claude Structured (stream=true) -> Azure GPT-5 nano does not return structured JSON for Claude messages (empty content)
+- deepseek-chat - Response Vision (stream=false) -> vision input unsupported by model deepseek-chat
+- deepseek-chat - Response Vision (stream=true) -> vision input unsupported by model deepseek-chat
+- gpt-5-mini - Claude Structured (stream=false) -> GPT-5 mini returns empty content for Claude structured requests
+- gpt-5-mini - Claude Structured (stream=true) -> GPT-5 mini streams only usage deltas, never emitting structured JSON blocks
+- openai/gpt-oss-20b - Response Vision (stream=false) -> vision input unsupported by model openai/gpt-oss-20b
+- openai/gpt-oss-20b - Response Vision (stream=true) -> vision input unsupported by model openai/gpt-oss-20b
+
+2025-12-12T04:37:09Z    INFO    oneapi-test     test/main.go:58 command completed       {"command": "run"}
 
 ```
 
@@ -159,6 +161,8 @@ The initial default account and password are `root` / `123456`. Listening port c
 
 Run one-api using docker-compose:
 
+> All environment variables can be set via the `environment` section in the `docker-compose.yml` file, please refer to [./common/config/config.go](./common/config/config.go) for all available configuration options.
+
 ```yaml
 oneapi:
   image: ppcelery/one-api:latest
@@ -167,110 +171,6 @@ oneapi:
     driver: "json-file"
     options:
       max-size: "10m"
-  environment:
-    # --- Session & Security ---
-    # (optional) SESSION_SECRET set a fixed session secret so that user sessions won't be invalidated after server restart
-    SESSION_SECRET: xxxxxxx
-    # (optional) ENABLE_COOKIE_SECURE enable secure cookies, must be used with HTTPS
-    ENABLE_COOKIE_SECURE: "true"
-    # (optional) COOKIE_MAXAGE_HOURS sets the session cookie's max age in hours. Default is `168` (7 days); adjust to control session lifetime.
-    COOKIE_MAXAGE_HOURS: 168
-
-    # --- Core Runtime ---
-    # (optional) PORT override the listening port used by the HTTP server, default is `3000`
-    PORT: 3000
-    # (optional) GIN_MODE set Gin runtime mode; defaults to release when unset
-    GIN_MODE: release
-    # (optional) SHUTDOWN_TIMEOUT_SEC controls how long to wait for graceful shutdown and drains (seconds)
-    SHUTDOWN_TIMEOUT_SEC: 360
-    # (optional) DEBUG enable debug mode
-    DEBUG: "true"
-    # (optional) DEBUG_SQL display SQL logs
-    DEBUG_SQL: "true"
-    # (optional) ENABLE_PROMETHEUS_METRICS expose /metrics for Prometheus scraping when true
-    ENABLE_PROMETHEUS_METRICS: "true"
-    # (optional) LOG_RETENTION_DAYS set log retention days; default is not to delete any logs
-    LOG_RETENTION_DAYS: 7
-    # (optional) TRACE_RENTATION_DAYS retain trace records for the specified number of days; default is 30 and 0 disables cleanup
-    TRACE_RENTATION_DAYS: 30
-
-    # --- Storage & Cache ---
-    # (optional) SQL_DSN set SQL database connection; leave empty to use SQLite (supports mysql, postgresql, sqlite3)
-    SQL_DSN: "postgres://laisky:xxxxxxx@1.2.3.4/oneapi"
-    # (optional) SQLITE_PATH override SQLite file path when SQL_DSN is empty
-    SQLITE_PATH: "/data/one-api.db"
-    # (optional) SQL_MAX_IDLE_CONNS tune database idle connection pool size
-    SQL_MAX_IDLE_CONNS: 200
-    # (optional) SQL_MAX_OPEN_CONNS tune database max open connections
-    SQL_MAX_OPEN_CONNS: 2000
-    # (optional) SQL_MAX_LIFETIME tune database connection lifetime in seconds
-    SQL_MAX_LIFETIME: 300
-    # (optional) REDIS_CONN_STRING set Redis cache connection
-    REDIS_CONN_STRING: redis://100.122.41.16:6379/1
-    # (optional) REDIS_PASSWORD set Redis password when authentication is required
-    REDIS_PASSWORD: ""
-    # (optional) SYNC_FREQUENCY refresh in-memory caches every N seconds when enabled
-    SYNC_FREQUENCY: 600
-    # (optional) MEMORY_CACHE_ENABLED force memory cache usage even without Redis
-    MEMORY_CACHE_ENABLED: "true"
-
-    # --- Usage & Billing ---
-    # (optional) ENFORCE_INCLUDE_USAGE require upstream API responses to include usage field
-    ENFORCE_INCLUDE_USAGE: "true"
-    # (optional) PRECONSUME_TOKEN_FOR_BACKGROUND_REQUEST reserve quota for background requests that report usage later
-    PRECONSUME_TOKEN_FOR_BACKGROUND_REQUEST: 15000
-    # (optional) DEFAULT_MAX_TOKEN set the default maximum number of tokens for requests, default is 2048
-    DEFAULT_MAX_TOKEN: 2048
-    # (optional) DEFAULT_USE_MIN_MAX_TOKENS_MODEL opt-in to the min/max token contract for supported channels
-    DEFAULT_USE_MIN_MAX_TOKENS_MODEL: "false"
-
-    # --- Rate Limiting ---
-    # (optional) GLOBAL_API_RATE_LIMIT maximum API requests per IP within three minutes, default is 1000
-    GLOBAL_API_RATE_LIMIT: 1000
-    # (optional) GLOBAL_WEB_RATE_LIMIT maximum web page requests per IP within three minutes, default is 1000
-    GLOBAL_WEB_RATE_LIMIT: 1000
-    # (optional) GLOBAL_RELAY_RATE_LIMIT /v1 API ratelimit for each token
-    GLOBAL_RELAY_RATE_LIMIT: 1000
-    # (optional) GLOBAL_CHANNEL_RATE_LIMIT whether to ratelimit per channel; 0 is unlimited, 1 enables rate limiting
-    GLOBAL_CHANNEL_RATE_LIMIT: 1
-    # (optional) CRITICAL_RATE_LIMIT tighten rate limits for admin-only APIs (seconds window matches defaults)
-    CRITICAL_RATE_LIMIT: 20
-
-    # --- Channel Automation ---
-    # (optional) CHANNEL_SUSPEND_SECONDS_FOR_429 set the suspension duration (seconds) after receiving a 429 error, default is 60 seconds
-    CHANNEL_SUSPEND_SECONDS_FOR_429: 60
-    # (optional) CHANNEL_TEST_FREQUENCY run automatic channel health checks every N seconds (0 disables)
-    CHANNEL_TEST_FREQUENCY: 0
-    # (optional) BATCH_UPDATE_ENABLED enable background batch quota updater
-    BATCH_UPDATE_ENABLED: "false"
-    # (optional) BATCH_UPDATE_INTERVAL batch quota flush interval in seconds
-    BATCH_UPDATE_INTERVAL: 5
-
-    # --- Frontend & Proxies ---
-    # (optional) FRONTEND_BASE_URL redirect page requests to specified address, server-side setting only
-    FRONTEND_BASE_URL: https://oneapi.laisky.com
-    # (optional) RELAY_PROXY forward upstream model calls through an HTTP proxy
-    RELAY_PROXY: ""
-    # (optional) USER_CONTENT_REQUEST_PROXY proxy for fetching user-provided assets
-    USER_CONTENT_REQUEST_PROXY: ""
-    # (optional) USER_CONTENT_REQUEST_TIMEOUT timeout (seconds) for fetching user assets
-    USER_CONTENT_REQUEST_TIMEOUT: 30
-
-    # --- Media & Pagination ---
-    # (optional) MAX_ITEMS_PER_PAGE maximum items per page, default is 100
-    MAX_ITEMS_PER_PAGE: 100
-    # (optional) MAX_INLINE_IMAGE_SIZE_MB set the maximum allowed image size (in MB) for inlining images as base64, default is 30
-    MAX_INLINE_IMAGE_SIZE_MB: 30
-
-    # --- Integrations ---
-    # (optional) OPENROUTER_PROVIDER_SORT set sorting method for OpenRouter Providers, default is throughput
-    OPENROUTER_PROVIDER_SORT: throughput
-    # (optional) LOG_PUSH_API set the API address for pushing error logs to external services
-    # https://github.com/Laisky/laisky-blog-graphql/blob/master/internal/web/telegram/README.md
-    LOG_PUSH_API: "https://gq.laisky.com/query/"
-    LOG_PUSH_TYPE: "oneapi"
-    LOG_PUSH_TOKEN: "xxxxxxx"
-
   volumes:
     - /var/lib/oneapi:/data
   ports:
@@ -952,9 +852,11 @@ Response:
 
 #### Support gpt-5 family
 
+gpt-5.2 / gpt-5.2-2025-12-11 / gpt-5.2-pro / gpt-5.2-pro-2025-12-11
+
 gpt-5.1-chat-latest / gpt-5.1 / gpt-5.1-2025-11-13 / gpt-5.1-codex / gpt-5.1-codex-mini
 
-gpt-5-chat-latest / gpt-5 / gpt-5-mini / gpt-5-nano / gpt-5-codex / gpt-5-pro
+gpt-5-chat-latest / gpt-5 / gpt-5-mini / gpt-5-nano / gpt-5-codex / gpt-5.1-codex-max/ gpt-5-pro
 
 #### Support o3-deep-research & o4-mini-deep-research
 

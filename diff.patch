@@ -1,0 +1,304 @@
+diff --git a/common/config/config.go b/common/config/config.go
+index 5f5789c..a4d6f47 100644
+--- a/common/config/config.go
++++ b/common/config/config.go
+@@ -89,7 +89,7 @@ var (
+ 	// GeminiSafetySetting defines the default Gemini safety preset applied to requests without explicit overrides.
+ 	GeminiSafetySetting = env.String("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
+ 	// Theme chooses which bundled frontend theme to render.
+-	Theme = env.String("THEME", "modern")
++	Theme = env.String("THEME", "default")
+ 
+ 	// RequestInterval throttles billing/channel polling loops (seconds).
+ 	RequestInterval = time.Duration(env.Int("POLLING_INTERVAL", 0)) * time.Second
+@@ -114,6 +114,8 @@ var (
+ 	EnableMetric = env.Bool("ENABLE_METRIC", false)
+ 	// EnablePrometheusMetrics exposes the /metrics endpoint for Prometheus scrapers when true.
+ 	EnablePrometheusMetrics = env.Bool("ENABLE_PROMETHEUS_METRICS", true)
++	// EnableTrace toggles request tracing functionality including trace records and timestamps.
++	EnableTrace = env.Bool("ENABLE_TRACE", false)
+ 	// MetricQueueSize configures the buffered queue that aggregates success/failure events before processing.
+ 	MetricQueueSize = env.Int("METRIC_QUEUE_SIZE", 10)
+ 	// MetricSuccessRateThreshold defines the minimum acceptable success ratio before a channel is flagged as unhealthy.
+diff --git a/common/ctxkey/key.go b/common/ctxkey/key.go
+index 5b373f1..49762b9 100644
+--- a/common/ctxkey/key.go
++++ b/common/ctxkey/key.go
+@@ -254,4 +254,7 @@ const (
+ 	// Set in: relay/controller/text when initializing a streaming request.
+ 	// Read in: streaming adaptors to record completion progress and enforce quota limits mid-stream.
+ 	StreamingQuotaTracker = "streaming_quota_tracker"
++
++	ResponseAPI   = "response_api"
++	ResponseAPIID = "response_id"
+ )
+diff --git a/common/tracing/tracing.go b/common/tracing/tracing.go
+index 22c768e..f78f0c0 100644
+--- a/common/tracing/tracing.go
++++ b/common/tracing/tracing.go
+@@ -7,6 +7,7 @@ import (
+ 	"github.com/Laisky/zap"
+ 	"github.com/gin-gonic/gin"
+ 
++	"github.com/songquanpeng/one-api/common/config"
+ 	"github.com/songquanpeng/one-api/common/logger"
+ 	"github.com/songquanpeng/one-api/model"
+ )
+@@ -34,6 +35,9 @@ func GetTraceIDFromContext(ctx context.Context) string {
+ 
+ // RecordTraceStart creates a new trace record when a request starts
+ func RecordTraceStart(c *gin.Context) {
++	if !config.EnableTrace {
++		return
++	}
+ 	traceID := GetTraceID(c)
+ 	lg := gmw.GetLogger(c).With(zap.String("trace_id", traceID))
+ 	if traceID == "" {
+@@ -57,6 +61,9 @@ func RecordTraceStart(c *gin.Context) {
+ 
+ // RecordTraceTimestamp updates a specific timestamp in the trace record
+ func RecordTraceTimestamp(c *gin.Context, timestampKey string) {
++	if !config.EnableTrace {
++		return
++	}
+ 	traceID := GetTraceID(c)
+ 	lg := gmw.GetLogger(c).With(
+ 		zap.String("trace_id", traceID),
+@@ -93,6 +100,9 @@ func RecordTraceTimestamp(c *gin.Context, timestampKey string) {
+ 
+ // RecordTraceStatus updates the HTTP status code for a trace
+ func RecordTraceStatus(c *gin.Context, status int) {
++	if !config.EnableTrace {
++		return
++	}
+ 	traceID := GetTraceID(c)
+ 	lg := gmw.GetLogger(c).With(
+ 		zap.String("trace_id", traceID),
+@@ -114,6 +124,9 @@ func RecordTraceStatus(c *gin.Context, status int) {
+ 
+ // RecordTraceEnd marks the completion of a request and records final timestamp
+ func RecordTraceEnd(c *gin.Context) {
++	if !config.EnableTrace {
++		return
++	}
+ 	traceID := GetTraceID(c)
+ 	lg := gmw.GetLogger(c).With(zap.String("trace_id", traceID))
+ 	if traceID == "" {
+diff --git a/main.go b/main.go
+index 9f1a064..7a25e46 100644
+--- a/main.go
++++ b/main.go
+@@ -155,7 +155,9 @@ func main() {
+ 	// This will cause SSE not to work!!!
+ 	//server.Use(gzip.Gzip(gzip.DefaultCompression))
+ 	server.Use(middleware.RequestId())
+-	server.Use(middleware.TracingMiddleware())
++	if config.EnableTrace {
++		server.Use(middleware.TracingMiddleware())
++	}
+ 
+ 	// Add Prometheus middleware if enabled
+ 	if config.EnablePrometheusMetrics {
+diff --git a/middleware/response.go b/middleware/response.go
+new file mode 100644
+index 0000000..178ff50
+--- /dev/null
++++ b/middleware/response.go
+@@ -0,0 +1,61 @@
++package middleware
++
++import (
++	"fmt"
++	"time"
++
++	"github.com/gin-gonic/gin"
++	"github.com/songquanpeng/one-api/common"
++	"github.com/songquanpeng/one-api/common/ctxkey"
++)
++
++func ResponseID() func(c *gin.Context) {
++	return func(c *gin.Context) {
++		c.Set(ctxkey.ResponseAPI, true)
++		c.Next()
++		if !common.IsRedisEnabled() {
++			return
++		}
++		id := c.GetString(ctxkey.ResponseAPIID)
++		if id == "" {
++			return
++		}
++		userID := c.GetInt(ctxkey.Id)
++		if userID == 0 {
++			return
++		}
++		rdb := common.RDB
++		key := fmt.Sprintf("response:api:id:%s:%d", id, userID)
++		rdb.SetEX(c, key, c.GetString(ctxkey.RequestModel), 10*24*time.Hour)
++	}
++}
++
++func SetModelIDForRequestAPI() func(c *gin.Context) {
++	return func(c *gin.Context) {
++		if c.Param(ctxkey.ResponseAPIID) == "" {
++			c.Next()
++			return
++		}
++		if c.GetString(ctxkey.RequestModel) != "" {
++			c.Next()
++			return
++		}
++		if !common.IsRedisEnabled() {
++			c.Next()
++			return
++		}
++		userID := c.GetInt(ctxkey.Id)
++		if userID == 0 {
++			c.Next()
++			return
++		}
++		rdb := common.RDB
++		key := fmt.Sprintf("response:api:id:%s:%d", c.Param(ctxkey.ResponseAPIID), userID)
++		result, err := rdb.Get(c, key).Result()
++		if err != nil {
++			c.Next()
++			return
++		}
++		c.Set(ctxkey.RequestModel, result)
++	}
++}
+diff --git a/middleware/tracing.go b/middleware/tracing.go
+index 404a723..cf04eb6 100644
+--- a/middleware/tracing.go
++++ b/middleware/tracing.go
+@@ -3,6 +3,7 @@ package middleware
+ import (
+ 	"github.com/gin-gonic/gin"
+ 
++	"github.com/songquanpeng/one-api/common/config"
+ 	"github.com/songquanpeng/one-api/common/tracing"
+ 	"github.com/songquanpeng/one-api/model"
+ )
+@@ -10,6 +11,12 @@ import (
+ // TracingMiddleware creates a middleware that records request tracing information
+ func TracingMiddleware() gin.HandlerFunc {
+ 	return func(c *gin.Context) {
++		// Skip tracing if disabled in config
++		if !config.EnableTrace {
++			c.Next()
++			return
++		}
++
+ 		// Record the start of the request
+ 		tracing.RecordTraceStart(c)
+ 
+diff --git a/relay/adaptor/openai/adaptor.go b/relay/adaptor/openai/adaptor.go
+index f2a8cf7..7466832 100644
+--- a/relay/adaptor/openai/adaptor.go
++++ b/relay/adaptor/openai/adaptor.go
+@@ -126,7 +126,7 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
+ 			requestPath = "/v1/chat/completions"
+ 		}
+ 		if useResponseAPI {
+-			requestURL := "/openai/v1/responses"
++			requestURL := "/openai" + requestPath
+ 			if strings.TrimSpace(defaultVersion) != "" {
+ 				requestURL = fmt.Sprintf("%s?api-version=%s", requestURL, defaultVersion)
+ 			}
+diff --git a/relay/adaptor/openai/main.go b/relay/adaptor/openai/main.go
+index 64882cf..ac2754a 100644
+--- a/relay/adaptor/openai/main.go
++++ b/relay/adaptor/openai/main.go
+@@ -742,6 +742,10 @@ func ResponseAPIHandler(c *gin.Context, resp *http.Response, promptTokens int, m
+ 		}, nil
+ 	}
+ 
++	if c.GetBool(ctxkey.ResponseAPI) {
++		c.Set(ctxkey.ResponseAPIID, responseAPIResp.Id)
++	}
++
+ 	calls := countWebSearchSearchActions(responseAPIResp.Output)
+ 	if derived, usedFallback := deriveWebSearchInvocationCount(calls, responseAPIResp.Usage); usedFallback {
+ 		lg.Debug("web search count derived from usage details", zap.Int("web_search_requests", derived))
+@@ -1312,6 +1316,10 @@ func ResponseAPIDirectHandler(c *gin.Context, resp *http.Response, promptTokens
+ 		}, nil
+ 	}
+ 
++	if c.GetBool(ctxkey.ResponseAPI) {
++		c.Set(ctxkey.ResponseAPIID, responseAPIResp.Id)
++	}
++
+ 	calls := countWebSearchSearchActions(responseAPIResp.Output)
+ 	if derived, usedFallback := deriveWebSearchInvocationCount(calls, responseAPIResp.Usage); usedFallback {
+ 		gmw.GetLogger(c).Debug("web search count derived from usage details", zap.Int("web_search_requests", derived))
+diff --git a/relay/controller/response.go b/relay/controller/response.go
+index e2e68e3..5a21b9d 100644
+--- a/relay/controller/response.go
++++ b/relay/controller/response.go
+@@ -537,6 +537,10 @@ func renderChatResponseAsResponseAPI(c *gin.Context, status int, textResp *opena
+ 	output := buildResponseOutput(textResp.Choices)
+ 	toolCalls := buildRequiredActionToolCalls(textResp.Choices)
+ 
++	if c.GetString(ctxkey.ResponseAPIID) != "" {
++		responseID = c.GetString(ctxkey.ResponseAPIID)
++	}
++
+ 	response := openai.ResponseAPIResponse{
+ 		Id:                 responseID,
+ 		Object:             "response",
+@@ -580,6 +584,7 @@ func renderChatResponseAsResponseAPI(c *gin.Context, status int, textResp *opena
+ 	}
+ 
+ 	c.Writer.Header().Set("Content-Type", "application/json")
++	c.Writer.Header().Set("Content-Length", strconv.Itoa(len(data)))
+ 	c.Writer.WriteHeader(status)
+ 	_, err = c.Writer.Write(data)
+ 	return err
+@@ -1347,7 +1352,7 @@ func applyResponseAPIStreamParams(c *gin.Context, meta *metalib.Meta) error {
+ func RelayResponseAPIGetHelper(c *gin.Context) *relaymodel.ErrorWithStatusCode {
+ 	meta := metalib.GetByContext(c)
+ 
+-	if meta.ChannelType != channeltype.OpenAI {
++	if meta.ChannelType != channeltype.OpenAI && meta.ChannelType != channeltype.Azure {
+ 		return openai.ErrorWrapper(errors.New("Response API is only supported for OpenAI channels"), "unsupported_channel", http.StatusBadRequest)
+ 	}
+ 
+@@ -1385,7 +1390,7 @@ func RelayResponseAPIDeleteHelper(c *gin.Context) *relaymodel.ErrorWithStatusCod
+ 	meta.IsStream = false
+ 	metalib.Set2Context(c, meta)
+ 
+-	if meta.ChannelType != channeltype.OpenAI {
++	if meta.ChannelType != channeltype.OpenAI && meta.ChannelType != channeltype.Azure {
+ 		return openai.ErrorWrapper(errors.New("Response API is only supported for OpenAI channels"), "unsupported_channel", http.StatusBadRequest)
+ 	}
+ 
+@@ -1434,7 +1439,7 @@ func RelayResponseAPICancelHelper(c *gin.Context) *relaymodel.ErrorWithStatusCod
+ 	meta.IsStream = false
+ 	metalib.Set2Context(c, meta)
+ 
+-	if meta.ChannelType != channeltype.OpenAI {
++	if meta.ChannelType != channeltype.OpenAI && meta.ChannelType != channeltype.Azure {
+ 		return openai.ErrorWrapper(errors.New("Response API is only supported for OpenAI channels"), "unsupported_channel", http.StatusBadRequest)
+ 	}
+ 
+diff --git a/router/relay.go b/router/relay.go
+index bf10ba9..dee3682 100644
+--- a/router/relay.go
++++ b/router/relay.go
+@@ -32,6 +32,7 @@ func SetRelayRouter(router *gin.Engine) {
+ 		func(c *gin.Context) { done := graceful.BeginRequest(); defer done(); c.Next() },
+ 		middleware.RelayPanicRecover(), middleware.TokenAuth(),
+ 		middleware.BindAsyncTaskChannel(),
++		middleware.SetModelIDForRequestAPI(),
+ 		middleware.Distribute(),
+ 		middleware.GlobalRelayRateLimit(),
+ 		middleware.ChannelRateLimit(),
+@@ -45,7 +46,7 @@ func SetRelayRouter(router *gin.Engine) {
+ 	relayV1Router.Any("/oneapi/proxy/:channelid/*target", controller.Relay)
+ 	relayV1Router.POST("/completions", controller.Relay)
+ 	relayV1Router.POST("/chat/completions", controller.Relay)
+-	relayV1Router.POST("/responses", controller.Relay)
++	relayV1Router.POST("/responses", middleware.ResponseID(), controller.Relay)
+ 	relayV1Router.GET("/responses/:response_id", controller.RelayResponseGet)
+ 	relayV1Router.DELETE("/responses/:response_id", controller.RelayResponseDelete)
+ 	relayV1Router.POST("/responses/:response_id/cancel", controller.RelayResponseCancel)
+

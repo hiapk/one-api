@@ -94,6 +94,32 @@ func TestIsInternalInfraError(t *testing.T) {
 	})
 }
 
+func TestIsAdaptorInternalError(t *testing.T) {
+	t.Run("detects adaptor errors", func(t *testing.T) {
+		err := &model.ErrorWithStatusCode{
+			StatusCode: http.StatusInternalServerError,
+			Error:      model.Error{Type: model.ErrorTypeOneAPI},
+		}
+		require.True(t, isAdaptorInternalError(err))
+	})
+
+	t.Run("ignores non adaptor types", func(t *testing.T) {
+		err := &model.ErrorWithStatusCode{
+			StatusCode: http.StatusInternalServerError,
+			Error:      model.Error{Type: model.ErrorTypeServer},
+		}
+		require.False(t, isAdaptorInternalError(err))
+	})
+
+	t.Run("requires server error status", func(t *testing.T) {
+		err := &model.ErrorWithStatusCode{
+			StatusCode: http.StatusBadRequest,
+			Error:      model.Error{Type: model.ErrorTypeOneAPI},
+		}
+		require.False(t, isAdaptorInternalError(err))
+	})
+}
+
 func TestProcessChannelRelayError_InternalInfraFailureDoesNotSuspend(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
@@ -112,14 +138,55 @@ func TestProcessChannelRelayError_InternalInfraFailureDoesNotSuspend(t *testing.
 		StatusCode: http.StatusInternalServerError,
 		Error: model.Error{
 			Message:  "internal ffprobe missing",
-			Type:     "internal_error",
+			Type:     model.ErrorTypeInternal,
 			Code:     "count_audio_tokens_failed",
 			RawError: outerErr,
 		},
 	}
 
 	require.NotPanics(t, func() {
-		processChannelRelayError(ctx, 1, 2, "test-channel", "default", "whisper-1", relayErr)
+		processChannelRelayError(ctx, processChannelRelayErrorParams{
+			UserId:        1,
+			TokenId:       0,
+			ChannelId:     2,
+			ChannelName:   "test-channel",
+			Group:         "default",
+			OriginalModel: "whisper-1",
+			ActualModel:   "whisper-1",
+			RequestURL:    "/v1/audio/transcriptions",
+			Err:           relayErr,
+		})
+	})
+}
+
+func TestProcessChannelRelayError_InternalAdaptorFailureDoesNotSuspend(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	ctx := gmw.Ctx(c)
+
+	relayErr := model.ErrorWithStatusCode{
+		StatusCode: http.StatusInternalServerError,
+		Error: model.Error{
+			Message:  "embedding decode failed",
+			Type:     model.ErrorTypeOneAPI,
+			Code:     "embedding_decode_failed",
+			RawError: errors.New("decode failure"),
+		},
+	}
+
+	require.NotPanics(t, func() {
+		processChannelRelayError(ctx, processChannelRelayErrorParams{
+			UserId:        1,
+			TokenId:       0,
+			ChannelId:     2,
+			ChannelName:   "azure text-embedding-3-large",
+			Group:         "default",
+			OriginalModel: "text-embedding-3-large",
+			ActualModel:   "text-embedding-3-large",
+			RequestURL:    "/v1/embeddings",
+			Err:           relayErr,
+		})
 	})
 }
 func TestProcessChannelRelayError_StatusTooManyRequests(t *testing.T) {
@@ -169,7 +236,7 @@ func TestProcessChannelRelayError_StatusTooManyRequests(t *testing.T) {
 				StatusCode: tt.statusCode,
 				Error: model.Error{
 					Message: "Test error message",
-					Type:    "rate_limit_error",
+					Type:    model.ErrorTypeRateLimit,
 				},
 			}
 
@@ -278,7 +345,7 @@ func TestProcessChannelRelayError_ModelLevelGranularity(t *testing.T) {
 		StatusCode: http.StatusTooManyRequests,
 		Error: model.Error{
 			Message: "Rate limit exceeded",
-			Type:    "rate_limit_error",
+			Type:    model.ErrorTypeRateLimit,
 		},
 	}
 
@@ -325,7 +392,7 @@ func TestRelay429ErrorHandling(t *testing.T) {
 				StatusCode: http.StatusTooManyRequests,
 				Error: model.Error{
 					Message: "Rate limit exceeded",
-					Type:    "rate_limit_error",
+					Type:    model.ErrorTypeRateLimit,
 				},
 			},
 			retryTimes:            3,
@@ -338,7 +405,7 @@ func TestRelay429ErrorHandling(t *testing.T) {
 				StatusCode: http.StatusInternalServerError,
 				Error: model.Error{
 					Message: "Internal server error",
-					Type:    "server_error",
+					Type:    model.ErrorTypeServer,
 				},
 			},
 			retryTimes:            3,
@@ -351,7 +418,7 @@ func TestRelay429ErrorHandling(t *testing.T) {
 				StatusCode: http.StatusNotFound,
 				Error: model.Error{
 					Message: "Not found",
-					Type:    "not_found_error",
+					Type:    model.ErrorTypeNotFound,
 				},
 			},
 			retryTimes:            3,
@@ -636,7 +703,7 @@ func TestProcessChannelRelayError(t *testing.T) {
 			testError := model.ErrorWithStatusCode{
 				Error: model.Error{
 					Message: "Test error message",
-					Type:    "test_error",
+					Type:    model.ErrorTypeTest,
 					Code:    tt.statusCode,
 				},
 				StatusCode: tt.statusCode,
@@ -664,9 +731,7 @@ func TestProcessChannelRelayError(t *testing.T) {
 
 			// Verify the behavior based on status code
 			elapsed := time.Since(startTime)
-			if elapsed > 10*time.Millisecond {
-				t.Errorf("processChannelRelayError took too long: %v", elapsed)
-			}
+			require.LessOrEqual(t, elapsed, 10*time.Millisecond, "processChannelRelayError took too long: %v", elapsed)
 
 			// Test that we handle the error appropriately
 			if tt.statusCode == http.StatusBadRequest {
@@ -731,9 +796,7 @@ func TestShouldRetryLogic(t *testing.T) {
 			// Simulate the retry logic behavior
 			if tt.specificChannel {
 				// If specific channel is requested, no retry should happen
-				if tt.shouldRetry {
-					t.Error("Should not retry when specific channel is requested")
-				}
+				require.False(t, tt.shouldRetry, "Should not retry when specific channel is requested")
 			} else {
 				// For general requests, retry behavior depends on error type
 				if tt.statusCode == http.StatusBadRequest {
@@ -750,9 +813,7 @@ func TestShouldRetryLogic(t *testing.T) {
 			}
 
 			elapsed := time.Since(startTime)
-			if elapsed > 5*time.Millisecond {
-				t.Errorf("Retry logic test took too long: %v", elapsed)
-			}
+			require.LessOrEqual(t, elapsed, 5*time.Millisecond, "Retry logic test took too long: %v", elapsed)
 		})
 	}
 }
@@ -772,16 +833,12 @@ func TestRetryChannelExclusionLogic(t *testing.T) {
 	channelIds := getChannelIds(failedChannels)
 	expectedCount := 3
 
-	if len(channelIds) != expectedCount {
-		t.Errorf("Expected %d failed channels, got %d", expectedCount, len(channelIds))
-	}
+	require.Len(t, channelIds, expectedCount, "Expected %d failed channels", expectedCount)
 
 	// Verify all expected channel IDs are present
 	expectedIds := map[int]bool{1: true, 2: true, 3: true}
 	for _, id := range channelIds {
-		if !expectedIds[id] {
-			t.Errorf("Unexpected channel ID in failed channels: %d", id)
-		}
+		require.True(t, expectedIds[id], "Unexpected channel ID in failed channels: %d", id)
 	}
 
 	t.Logf("✓ Failed channel tracking works correctly with %d channels", len(channelIds))
@@ -795,14 +852,10 @@ func TestErrorHandlingWithProperWrapping(t *testing.T) {
 	originalErr := errors.New("original error")
 	wrappedErr := errors.Wrap(originalErr, "wrapped error")
 
-	if wrappedErr == nil {
-		t.Error("Error should not be nil after wrapping")
-	}
+	require.NotNil(t, wrappedErr, "Error should not be nil after wrapping")
 
 	// Test that the wrapped error contains the original message
-	if !errors.Is(wrappedErr, originalErr) {
-		t.Error("Wrapped error should contain the original error")
-	}
+	require.ErrorIs(t, wrappedErr, originalErr, "Wrapped error should contain the original error")
 
 	t.Logf("✓ Error wrapping works correctly with github.com/Laisky/errors/v2")
 }

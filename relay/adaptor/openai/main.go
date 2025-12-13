@@ -437,6 +437,8 @@ func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName st
 	// Check if this is a Claude Messages conversion - if so, don't write response here
 	// The DoResponse method will handle the conversion and response writing
 	if isClaudeConversion, exists := c.Get(ctxkey.ClaudeMessagesConversion); exists && isClaudeConversion.(bool) {
+		// Preserve the original response body so convertToClaudeResponse can consume it later.
+		resp.Body = io.NopCloser(bytes.NewReader(responseBody))
 		// For Claude Messages conversion, just return the usage information
 		// The DoResponse method will handle the response conversion and writing
 		calculateTokenUsage(&textResponse, promptTokens, modelName)
@@ -543,7 +545,7 @@ func EmbeddingHandler(c *gin.Context, resp *http.Response, promptTokens int, mod
 			embeddingResponse.Error.RawError = stdErrors.New(embeddingResponse.Error.Message)
 		}
 		logger.Debug("upstream returned embedding error response",
-			zap.String("error_type", embeddingResponse.Error.Type),
+			zap.String("error_type", string(embeddingResponse.Error.Type)),
 			zap.String("error_message", embeddingResponse.Error.Message),
 			zap.Error(embeddingResponse.Error.RawError))
 		return &model.ErrorWithStatusCode{
@@ -557,6 +559,22 @@ func EmbeddingHandler(c *gin.Context, resp *http.Response, promptTokens int, mod
 			zap.ByteString("response_body", responseBody))
 		return ErrorWrapper(errors.Errorf("no embedding data in upstream response"),
 			"missing_embedding_data", http.StatusInternalServerError), nil
+	}
+
+	base64Vectors := 0
+	base64Dims := 0
+	for _, item := range embeddingResponse.Data {
+		if item.Base64Encoded {
+			base64Vectors++
+			if base64Dims == 0 {
+				base64Dims = len(item.Embedding)
+			}
+		}
+	}
+	if base64Vectors > 0 {
+		logger.Debug("decoded base64 embeddings",
+			zap.Int("vectors", base64Vectors),
+			zap.Int("dimensions", base64Dims))
 	}
 
 	usage := embeddingResponse.Usage

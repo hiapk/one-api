@@ -62,9 +62,9 @@ func TestGetFullRequestURL(t *testing.T) {
 		},
 		{
 			name:        "other-type-base-with-v1-trailing-slash",
-			base:        "https://api.example.com/v1/",
+			base:        "https://oneapi.laisky.com/v1/",
 			path:        "/v1/embeddings",
-			expect:      "https://api.example.com/v1/embeddings",
+			expect:      "https://oneapi.laisky.com/v1/embeddings",
 			channelType: channeltype.OpenAI,
 		},
 	}

@@ -582,7 +582,8 @@ type WebSearchCallSource struct {
 
 // ResponseTextConfig represents the text configuration for Response API
 type ResponseTextConfig struct {
-	Format *ResponseTextFormat `json:"format,omitempty"` // Optional: Format configuration for structured outputs
+	Format    *ResponseTextFormat `json:"format,omitempty"`    // Optional: Format configuration for structured outputs
+	Verbosity *string             `json:"verbosity,omitempty"` // Optional: Verbosity level (low, medium, high)
 }
 
 // ResponseTextFormat represents the format configuration for Response API structured outputs
@@ -670,14 +671,14 @@ func stringifyFunctionCallOutput(value any) string {
 }
 
 // findToolCallName finds the function name for a given tool call ID
-func findToolCallName(toolCalls []model.Tool, toolCallId string) string {
-	for _, toolCall := range toolCalls {
-		if toolCall.Id == toolCallId {
-			return toolCall.Function.Name
-		}
-	}
-	return "unknown_function"
-}
+// func findToolCallName(toolCalls []model.Tool, toolCallId string) string {
+// 	for _, toolCall := range toolCalls {
+// 		if toolCall.Id == toolCallId {
+// 			return toolCall.Function.Name
+// 		}
+// 	}
+// 	return "unknown_function"
+// }
 
 // convertMessageToResponseAPIFormat converts a ChatCompletion message to Response API format
 // This function handles the content type conversion from ChatCompletion format to Response API format
@@ -1094,6 +1095,15 @@ func ConvertChatCompletionToResponseAPI(request *model.GeneralOpenAIRequest) *Re
 		responseReq.Text = textConfig
 	}
 
+	// Handle verbosity parameter (GPT-5 series)
+	// In Response API, verbosity goes into text.verbosity
+	if request.Verbosity != nil {
+		if responseReq.Text == nil {
+			responseReq.Text = &ResponseTextConfig{}
+		}
+		responseReq.Text.Verbosity = request.Verbosity
+	}
+
 	// Handle system message as instructions
 	if len(request.Messages) > 0 && request.Messages[0].Role == "system" {
 		systemContent := request.Messages[0].StringContent()
@@ -1157,6 +1167,12 @@ func ConvertResponseAPIToChatCompletionRequest(request *ResponseAPIRequest) (*mo
 			}
 			chatReq.ResponseFormat.JsonSchema.Strict = nil
 		}
+	}
+
+	// Handle verbosity parameter (GPT-5 series)
+	// In Response API, verbosity is in text.verbosity; convert to top-level for ChatCompletion
+	if request.Text != nil && request.Text.Verbosity != nil {
+		chatReq.Verbosity = request.Text.Verbosity
 	}
 
 	if len(request.Tools) > 0 {
@@ -2254,13 +2270,14 @@ func ConvertResponseAPIStreamToChatCompletionWithIndex(responseAPIChunk *Respons
 	}
 
 	// Convert status to finish reason for final chunks
-	if responseAPIChunk.Status == "completed" {
+	switch responseAPIChunk.Status {
+	case "completed":
 		reason := "stop"
 		finishReason = &reason
-	} else if responseAPIChunk.Status == "failed" {
+	case "failed":
 		reason := "stop"
 		finishReason = &reason
-	} else if responseAPIChunk.Status == "incomplete" {
+	case "incomplete":
 		reason := "length"
 		finishReason = &reason
 	}

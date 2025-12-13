@@ -59,15 +59,13 @@ func TestConvertClaudeRequest_ToOpenAI(t *testing.T) {
 	assert.GreaterOrEqual(t, len(goReq.Messages), 4)
 	assert.NotNil(t, goReq.Tools)
 	assert.NotNil(t, goReq.ToolChoice)
-	if choiceMap, ok := goReq.ToolChoice.(map[string]any); ok {
-		assert.Equal(t, "function", choiceMap["type"])
-		fn, _ := choiceMap["function"].(map[string]any)
-		assert.Equal(t, "get_weather", fn["name"])
-		_, hasName := choiceMap["name"]
-		assert.False(t, hasName)
-	} else {
-		t.Fatalf("expected map tool_choice, got %T", goReq.ToolChoice)
-	}
+	choiceMap, ok := goReq.ToolChoice.(map[string]any)
+	require.True(t, ok, "expected map tool_choice, got %T", goReq.ToolChoice)
+	assert.Equal(t, "function", choiceMap["type"])
+	fn, _ := choiceMap["function"].(map[string]any)
+	assert.Equal(t, "get_weather", fn["name"])
+	_, hasName := choiceMap["name"]
+	assert.False(t, hasName)
 
 	var (
 		assistantSeen bool
@@ -166,11 +164,13 @@ func TestHandleClaudeMessagesResponse_NonStream_ConvertedResponse(t *testing.T) 
 	c.Set(ctxkey.ConvertedResponse, conv)
 
 	// Call
+	fallbackCalled := false
 	usage, errResp := HandleClaudeMessagesResponse(c, conv, m, func(*gin.Context, *http.Response, int, string) (*relaymodel.ErrorWithStatusCode, *relaymodel.Usage) {
 		// Should not be called in this path
-		t.Fatalf("fallback handler should not be invoked")
+		fallbackCalled = true
 		return nil, nil
 	})
+	require.False(t, fallbackCalled, "fallback handler should not be invoked")
 	require.Nil(t, errResp)
 	// Non-stream path returns nil usage and stores converted response in context for controller
 	assert.Nil(t, usage)
@@ -304,6 +304,58 @@ func TestConvertClaudeRequest_StructuredPromotionDisabledForDeepSeek(t *testing.
 	assert.Nil(t, converted.ResponseFormat)
 	require.NotNil(t, converted.ToolChoice)
 	require.NotEmpty(t, converted.Tools)
+}
+
+func TestConvertClaudeRequest_StructuredPromotionEnabledForAzureGPT5(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	meta.Set2Context(c, &meta.Meta{ChannelType: channeltype.Azure, ActualModelName: "gpt-5-nano"})
+
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"topic":      map[string]any{"type": "string"},
+			"confidence": map[string]any{"type": "number"},
+		},
+		"required": []any{"topic", "confidence"},
+	}
+	schema["additionalProperties"] = false
+
+	req := &relaymodel.ClaudeRequest{
+		Model:     "gpt-5-nano",
+		MaxTokens: 256,
+		Messages: []relaymodel.ClaudeMessage{
+			{
+				Role: "user",
+				Content: []any{
+					map[string]any{"type": "text", "text": "Provide structured topic and confidence JSON."},
+				},
+			},
+		},
+		Tools: []relaymodel.ClaudeTool{
+			{
+				Name:        "topic_classifier",
+				Description: "Return structured topic and confidence data",
+				InputSchema: schema,
+			},
+		},
+		ToolChoice: map[string]any{"type": "tool", "name": "topic_classifier"},
+	}
+
+	convertedAny, err := ConvertClaudeRequest(c, req)
+	require.NoError(t, err)
+	converted, ok := convertedAny.(*relaymodel.GeneralOpenAIRequest)
+	require.True(t, ok)
+
+	require.NotNil(t, converted.ResponseFormat)
+	require.NotNil(t, converted.ResponseFormat.JsonSchema)
+	assert.Equal(t, "json_schema", converted.ResponseFormat.Type)
+	assert.Equal(t, "topic_classifier", converted.ResponseFormat.JsonSchema.Name)
+	assert.Equal(t, schema, converted.ResponseFormat.JsonSchema.Schema)
+	assert.Nil(t, converted.ToolChoice)
+	assert.Empty(t, converted.Tools)
 }
 
 func TestConvertClaudeRequest_ToolNotPromoted(t *testing.T) {

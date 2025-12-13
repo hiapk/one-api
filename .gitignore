@@ -1,28 +1,5 @@
-.idea
-.vscode
-upload
-*.exe
-*.db
-build
-*.db-journal
-data
-node_modules
-/web/node_modules
-cmd.md
-.env
-/one-api
-temp
-.DS_Store
-/__debug_bin*
-/cmd/migrate/migrate
-/patch
-/logs/
-errlog
-
-# instructions
-.github/instructions/filesystem.instructions.md
-.github/instructions/gopls.instructions.md
-.github/instructions/laisky.instructions.md
-
-# test
-/cmd/test/generated/*
+run.sh
+web/build/
+logs/
+log
+pid

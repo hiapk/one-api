@@ -3,6 +3,8 @@ package controller
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/relay"
 	"github.com/songquanpeng/one-api/relay/channeltype"
@@ -109,9 +111,7 @@ func TestPreConsumedQuotaWithStructuredOutput(t *testing.T) {
 			baseQuota := int64(float64(basePreConsumedTokens) * tt.ratio)
 
 			// Should not have additional cost
-			if preConsumedQuota != baseQuota {
-				t.Errorf("Expected pre-consumed quota %d (no surcharge), got %d", baseQuota, preConsumedQuota)
-			}
+			require.Equal(t, baseQuota, preConsumedQuota, "Expected pre-consumed quota %d (no surcharge), got %d", baseQuota, preConsumedQuota)
 		})
 	}
 }
@@ -157,10 +157,9 @@ func TestStructuredOutputQuotaConsistency(t *testing.T) {
 	}
 
 	// But it shouldn't be more than 3x the actual cost (reasonable buffer)
-	if preConsumedQuota > actualPostQuota*3 {
-		t.Errorf("Pre-consumed quota (%d) is too conservative compared to actual post quota (%d)",
-			preConsumedQuota, actualPostQuota)
-	}
+	require.LessOrEqual(t, preConsumedQuota, actualPostQuota*3,
+		"Pre-consumed quota (%d) is too conservative compared to actual post quota (%d)",
+		preConsumedQuota, actualPostQuota)
 
 	t.Logf("Quota consistency check: pre-consumed=%d, actual-post=%d, ratio=%.2f",
 		preConsumedQuota, actualPostQuota, float64(preConsumedQuota)/float64(actualPostQuota))
